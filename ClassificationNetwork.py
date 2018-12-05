@@ -1,6 +1,51 @@
+import math
+import os
+from os import path
+import csv
+from random import shuffle
+
 import tensorflow as tf
 import numpy as np
 
+
+# Get Data
+root_path = ""
+data = []
+
+folders = os.listdir(root_path)
+for folder in folders:
+    reps = []
+    with open(path.join(root_path, folder, "reps.txt")) as f:
+        with open(path.join(root_path, folder, "gt.txt")) as f2:
+            reader = csv.reader(f)
+            for row in reader:
+                #rep
+                row_d = []
+                for item in row:
+                    row_d.append(float(item))
+                #gt
+                gt = []
+                line = f2.readline()
+                values = line.split(",")
+                for value in values:
+                    gt.append(int(value))
+
+                row_d.append(gt)
+                reps.append(row_d)
+    data.extend(reps)
+print(data[0])
+
+shuffle(data)
+
+# split data
+train = data[:math.floor(2*len(data)/3)]
+test = data[math.floor(2*len(data)/3):]
+
+x_train = [x[:128] for x in train]
+y_train = [y[128] for y in train]
+
+x_test = [x[:128] for x in test]
+y_test = [y[128] for y in test]
 
 # Code derived from
 # https://medium.com/@curiousily/tensorflow-for-hackers-part-ii-building-simple-neural-network-2d6779d2f91b
@@ -9,12 +54,12 @@ random_state = 42
 np.random.seed(random_state)
 tf.set_random_seed(random_state)
 
-class_names = ["zac_effron", "place_holder", "who"]
+class_names = ["AC", "SJ", "Other"]
 
-x_train = np.random.rand(5, 146)
-y_train = np.random.rand(5, 3)
-x_test = np.random.rand(5, 146)
-y_test = np.random.rand(5, 3)
+# x_train = np.random.rand(5, 146)
+# y_train = np.random.rand(5, 3)
+# x_test = np.random.rand(5, 146)
+# y_test = np.random.rand(5, 3)
 
 def multilayer_perceptron(x, weights, biases, keep_prob):
     layer_1 = tf.add(tf.matmul(x, weights['h1']), biases['b1'])
@@ -24,8 +69,8 @@ def multilayer_perceptron(x, weights, biases, keep_prob):
     return out_layer
 
 
-n_hidden_1 = 146
-n_input = 146
+n_hidden_1 = 128
+n_input = 128
 n_classes = 3
 
 weights = {
@@ -42,7 +87,7 @@ keep_prob = tf.placeholder("float")
 
 training_epochs = 5000
 display_step = 1000
-batch_size = 1
+batch_size = 32
 
 x = tf.placeholder("float", [None, n_input])
 y = tf.placeholder("float", [None, n_classes])
@@ -52,7 +97,7 @@ y = tf.placeholder("float", [None, n_classes])
 predictions = multilayer_perceptron(x, weights, biases, keep_prob)
 cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=predictions, labels=y))
 optimizer = tf.train.AdamOptimizer(learning_rate=0.0001).minimize(cost)
-
+# optimizer = tf.train.GradientDescentOptimizer(learning_rate=0.0001).minimize(cost)
 
 with tf.Session() as sess:
     sess.run(tf.global_variables_initializer())
