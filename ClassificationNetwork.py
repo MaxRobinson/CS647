@@ -99,33 +99,65 @@ cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=predictions
 optimizer = tf.train.AdamOptimizer(learning_rate=0.0001).minimize(cost)
 # optimizer = tf.train.GradientDescentOptimizer(learning_rate=0.0001).minimize(cost)
 
-with tf.Session() as sess:
-    sess.run(tf.global_variables_initializer())
+cross_val_number = 3
+data_len = math.floor(len(data)/cross_val_number)
+data_parts = []
+for i in range(cross_val_number):
+    data_parts.append(data[i*data_len:(i+1)*data_len])
 
-    for epoch in range(training_epochs):
-        avg_cost = 0.0
-        total_batch = int(len(x_train) / batch_size)
-        x_batches = np.array_split(x_train, total_batch)
-        y_batches = np.array_split(y_train, total_batch)
-        for i in range(total_batch):
-            batch_x, batch_y = x_batches[i], y_batches[i]
-            _, c = sess.run([optimizer, cost],
-                            feed_dict={
-                                x: batch_x,
-                                y: batch_y,
-                                keep_prob: 0.8
-                            })
-            avg_cost += c / total_batch
-        if epoch % display_step == 0:
-            print("Epoch:", '%04d' % (epoch+1), "cost=", \
-                  "{:.9f}".format(avg_cost))
 
-    print("Optimization Finished!")
-    correct_prediction = tf.equal(tf.argmax(predictions, 1), tf.argmax(y, 1))
-    print(correct_prediction)
-    accuracy = tf.reduce_mean(tf.cast(correct_prediction, "float"))
-    print("Accuracy:", accuracy.eval({x: x_test, y: y_test, keep_prob: 1.0}))
 
+accuracy_list = []
+
+for i in range(cross_val_number):
+    train = []
+    test = data_parts[i]
+    for j, data in enumerate(data_parts):
+        if i == j:
+            continue
+        train.extend(data)
+
+    x_train = [x[:128] for x in train]
+    y_train = [y[128] for y in train]
+
+    x_test = [x[:128] for x in test]
+    y_test = [y[128] for y in test]
+
+    with tf.Session() as sess:
+        sess.run(tf.global_variables_initializer())
+
+        for epoch in range(training_epochs):
+            avg_cost = 0.0
+            total_batch = int(len(x_train) / batch_size)
+            x_batches = np.array_split(x_train, total_batch)
+            y_batches = np.array_split(y_train, total_batch)
+            for i in range(total_batch):
+                batch_x, batch_y = x_batches[i], y_batches[i]
+                _, c = sess.run([optimizer, cost],
+                                feed_dict={
+                                    x: batch_x,
+                                    y: batch_y,
+                                    keep_prob: 0.8
+                                })
+                avg_cost += c / total_batch
+            if epoch % display_step == 0:
+                print("Epoch:", '%04d' % (epoch+1), "cost=", \
+                      "{:.9f}".format(avg_cost))
+
+        print("Optimization Finished!")
+        correct_prediction = tf.equal(tf.argmax(predictions, 1), tf.argmax(y, 1))
+        print(correct_prediction)
+        accuracy = tf.reduce_mean(tf.cast(correct_prediction, "float"))
+        accur_val = accuracy.eval({x: x_test, y: y_test, keep_prob: 1.0})
+        print("Accuracy:", accur_val)
+
+        accuracy_list.append(accur_val)
+
+standard_deviation = np.std(accuracy_list)
+average_accuracy = np.average(accuracy_list)
+print(accuracy_list)
+print(average_accuracy)
+print(standard_deviation)
 
 
 
